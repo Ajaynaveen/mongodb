@@ -1,0 +1,186 @@
+Design database for Zen class programme
+users
+codekata
+attendance
+topics
+tasks
+company_drives
+mentors
+
+
+Find all the topics and tasks which are thought in the month of October
+Find all the company drives which appeared between 15 oct-2020 and 31-oct-2020
+Find all the company drives and students who are appeared for the placement.
+Find the number of problems solved by the user in codekata
+Find all the mentors with who has the mentee's count more than 15
+Find the number of users who are absent and task is not submitted  between 15 oct-2020 and 31-oct-2020
+
+//...database design..
+Database Schema:
+
+Collection: users
+
+_id (Primary Key)
+name
+email
+phone
+role (e.g., student, mentor)
+company company_drive_id 
+Collection: codekata
+
+_id (Primary Key)
+user_id (Foreign Key referencing users collection)
+date
+problems_solved
+Collection: attendance
+
+_id (Primary Key)
+user_id (Foreign Key referencing users collection)
+date
+status (e.g., present, absent)
+Collection: topics
+
+_id (Primary Key)
+name
+Collection: tasks
+
+_id (Primary Key)
+topic_id (Foreign Key referencing topic collection)
+user_id(foreign key referencing user collection)
+date
+task_description
+Collection: company_drives
+
+_id (Primary Key)
+date
+company_name
+Collection: mentors
+
+_id (Primary Key)
+name
+students_count
+
+
+1)Find all the topics and tasks which are thought in the month of October
+topic collection..
+{
+  "_id": ObjectId("topic_id_1"),
+  "name": "JavaScript Basics",
+  "description": "An introduction to JavaScript programming language.",
+  "created_at": ISODate("2023-07-26T00:00:00Z"),
+  "updated_at": ISODate("2023-07-26T00:00:00Z")
+}
+2task collection
+{
+  "_id": ObjectId("task_id_1"),
+  "topic_id": ObjectId("topic_id_1"),
+  "task_description": "Write a simple 'Hello, World!' program in JavaScript.",
+  "date": ISODate("2023-10-05"),
+  "created_at": ISODate("2023-07-26T00:00:00Z"),
+  "updated_at": ISODate("2023-07-26T00:00:00Z")
+},
+{
+  "_id": ObjectId("task_id_2"),
+  "topic_id": ObjectId("topic_id_1"),
+  "task_description": "Variables and Data Types in JavaScript.",
+  "date": ISODate("2023-10-10"),
+  "created_at": ISODate("2023-07-26T00:00:00Z"),
+  "updated_at": ISODate("2023-07-26T00:00:00Z")
+}
+db.topics.aggregate([
+  {
+    $lookup: {
+      from: "tasks",
+      localField: "_id",
+      foreignField: "topic_id",
+      as: "tasks_taught"
+    }
+  },
+  {
+    $unwind: "$tasks_taught"
+  },
+  {
+    $match: {
+      "tasks_taught.date": {
+        $gte: ISODate("2023-10-01"),
+        $lte: ISODate("2023-10-31")
+      }
+    }
+  },
+  {
+    $project: {
+      _id: 1,
+      name: 1,
+      "tasks_taught._id": 1,
+      "tasks_taught.task_description": 1
+    }
+  }
+])
+2)Find all the company drives that appeared between 15th October 2020 and 31st October 2020:
+
+
+db.company_drives.find({
+  date: {
+    $gte: ISODate("2020-10-15"),
+    $lte: ISODate("2020-10-31")
+  }
+})
+
+3)db.company_drives.aggregate([
+  {
+    $lookup: {
+      from: "users",
+      localField: "_id",
+      foreignField: "company_drive_id",
+      as: "students_appeared"
+    }
+  },
+  {
+    $match: {
+      "students_appeared.role": "student"
+    }
+  },
+  {
+    $project: {
+      _id: 1,
+      date: 1,
+      company_name: 1,
+      "students_appeared.name": 1
+    }
+  }
+])
+Find the number of problems solved by the user in codekata
+
+db.codekata.aggregate([
+  {
+    $match: {
+      user_id: ObjectId("<user_id_here>")
+    }
+  },
+  {
+    $group: {
+      _id: "$user_id",
+      total_problems_solved: { $sum: "$problems_solved" }
+    }
+  }
+])
+Find all the mentors with who has the mentee's count more than 15
+db.mentors.find({
+  students_count: { $gt: 15 }
+})
+Find the number of users who are absent and task is not submitted  between 15 oct-2020 and 31-oct-2020
+db.attendance.find({
+  date: {
+    $gte: ISODate("2020-10-15"),
+    $lte: ISODate("2020-10-31")
+  },
+  status: "absent"
+}).count()
+
+db.tasks.find({
+  date: {
+    $gte: ISODate("2020-10-15"),
+    $lte: ISODate("2020-10-31")
+  },
+  task_description: { $exists: false }
+}).count()
